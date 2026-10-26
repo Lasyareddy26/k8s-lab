@@ -18,7 +18,50 @@ jobs:
             sleep 5
             curl --fail http://localhost:8080
 
+  deploy-to-kind:
+    machine:
+      image: ubuntu-2204:current
+    steps:
+      - checkout
+      - run:
+          name: Install kind and kubectl
+          command: |
+            curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.24.0/kind-linux-amd64
+            chmod +x ./kind
+            sudo mv ./kind /usr/local/bin/kind
+            curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+            chmod +x kubectl
+            sudo mv kubectl /usr/local/bin/kubectl
+      - run:
+          name: Create kind cluster
+          command: kind create cluster --name lab-cluster
+      - run:
+          name: Build and load image
+          command: |
+            docker build -t my-app:1.0 .
+            kind load docker-image my-app:1.0 --name lab-cluster
+      - run:
+          name: Deploy to Kubernetes
+          command: |
+            kubectl apply -f deployment.yaml
+            kubectl apply -f service.yaml
+            kubectl rollout status deployment/my-app --timeout=120s
+      - run:
+          name: Verify deployment
+          command: |
+            kubectl get pods
+            kubectl get services
+            kubectl port-forward service/my-app-service 8081:80 &
+            sleep 5
+            curl --fail http://localhost:8081
+
 workflows:
-  ci-pipeline:
+  ci-cd-pipeline:
     jobs:
       - build-and-test
+      - deploy-to-kind:
+          requires:
+            - build-and-test
+          filters:
+            branches:
+              only: main
