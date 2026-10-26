@@ -4,6 +4,6 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b"Hello from my app running on Kubernetes kind!")
+        self.wfile.write(b"Hello! Version 2 deployed automatically by GitHub Actions!")
 
 HTTPServer(("0.0.0.0", 8080), Handler).serve_forever()
