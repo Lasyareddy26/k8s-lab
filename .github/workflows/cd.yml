@@ -1,0 +1,41 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: lab-cluster
+
+      - name: Build Docker image
+        run: docker build -t my-app:1.0 .
+
+      - name: Load image into kind
+        run: kind load docker-image my-app:1.0 --name lab-cluster
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f deployment.yaml
+          kubectl apply -f service.yaml
+          kubectl rollout status deployment/my-app --timeout=120s
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods
+          kubectl get services
+          kubectl port-forward service/my-app-service 8081:80 &
+          sleep 5
+          curl --fail http://localhost:8081
