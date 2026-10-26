@@ -1,0 +1,24 @@
+version: 2.1
+
+jobs:
+  build-and-test:
+    machine:
+      image: ubuntu-2204:current
+    steps:
+      - checkout
+      - run:
+          name: Build Docker image
+          command: docker build -t my-app:1.0 .
+      - run:
+          name: Run container
+          command: docker run -d -p 8080:8080 --name test-app my-app:1.0
+      - run:
+          name: Test the app
+          command: |
+            sleep 5
+            curl --fail http://localhost:8080
+
+workflows:
+  ci-pipeline:
+    jobs:
+      - build-and-test
